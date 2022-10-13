@@ -14,13 +14,11 @@ import (
 // the description and err is nil. If it fails, s contains the error output and err contains the
 // error returned from Run().
 func FormatShowRefDescription(ref, format string) (s string, err error) {
-	buf := &bytes.Buffer{}
-	cmd := exec.Command("git", "show", ref, "--no-patch", "--no-color", fmt.Sprintf("--format=%s", format))
-	cmd.Stdout = buf
-	cmd.Stderr = buf
-
-	err = cmd.Run()
-	return buf.String(), err
+	if output, err := gitOutput("show", ref, "--no-patch", "--no-color", fmt.Sprintf("--format=%s", format)); err != nil {
+		return "", err
+	} else {
+		return strings.TrimSpace(output), nil
+	}
 }
 
 // Diff shows the diff/patch between two specific commits. If it succeeds, buf contains the patch
@@ -113,14 +111,19 @@ func Commit(message string) error {
 	return nil
 }
 
-// Amend runs `git commit --amend` to amend the details of the last commit
+// Amend runs `git commit --amend` to amend the details of the last commit. It binds to the terminal
+// so that in-terminal editors like vim can be used "normally"
 func Amend() error {
 	cmd := exec.Command("git", "commit", "--amend")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	return cmd.Run()
+}
+
+// Amend runs `git commit --amend --no-edit` to amend the details of the last commit
+func AmendNoEdit() error {
+	return git("commit", "--amend", "--no-edit")
 }
 
 // Checkout the specified ref
@@ -165,12 +168,24 @@ func Rebase(base, topic string) error {
 	return git("rebase", base, topic)
 }
 
-func git(args ...string) error {
-	cmd := exec.Command("git", args...)
+// Log returns a log as per the provided arguments
+func Log(arg ...string) (string, error) {
+	arg = append([]string{"log"}, arg...)
+	return gitOutput(arg...)
+}
+
+func gitOutput(arg ...string) (string, error) {
+	cmd := exec.Command("git", arg...)
 
 	if output, err := cmd.CombinedOutput(); err != nil {
 		asExecuted := cmd.String()
-		return fmt.Errorf("%s: %s\n%s", err, asExecuted, output)
+		return "", fmt.Errorf("%s: %s\n%s", err, asExecuted, output)
+	} else {
+		return strings.TrimSpace(string(output)), nil
 	}
-	return nil
+}
+
+func git(arg ...string) error {
+	_, err := gitOutput(arg...)
+	return err
 }

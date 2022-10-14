@@ -520,3 +520,44 @@ func TestGetForkPoint(t *testing.T) {
 		t.Fatal("Expected error for invalid ref")
 	}
 }
+
+func TestGetPushRemoteForBranch(t *testing.T) {
+	func() {
+		cleanup := setupGitRepo(t)
+		defer cleanup()
+
+		const k_PushBranchName = "push-to-me"
+		if err := CreateBranch(k_PushBranchName); err != nil {
+			t.Fatal(err)
+		} else if configDefaultBranchName, err := getConfigDefaultBranchName(); err != nil {
+			t.Fatal(err)
+		} else if err := git("branch", "-u", k_PushBranchName); err != nil {
+			t.Fatal(err)
+		} else if remoteName, err := GetPushRemoteForBranch(configDefaultBranchName); err != nil {
+			t.Fatal(err)
+		} else {
+			expectEq(t, ".", remoteName)
+		}
+	}()
+
+	func() {
+		cleanup := setupGitRepo(t)
+		defer cleanup()
+
+		const k_DummyRemoteName = "dummy"
+
+		configDefaultBranchName, err := getConfigDefaultBranchName()
+		if err != nil {
+			t.Fatal(err)
+		}
+		var configPath = fmt.Sprintf("branch.%s.pushRemote", configDefaultBranchName)
+
+		if err := git("config", "--add", configPath, k_DummyRemoteName); err != nil {
+			t.Fatal(err)
+		} else if remoteName, err := GetPushRemoteForBranch(configDefaultBranchName); err != nil {
+			t.Fatal(err)
+		} else {
+			expectEq(t, k_DummyRemoteName, remoteName)
+		}
+	}()
+}

@@ -185,6 +185,29 @@ func GetForkPoint(ref string, arg ...string) (string, error) {
 	}
 }
 
+func GetPushRemoteForBranch(branch string) (string, error) {
+	pushRemotePath := fmt.Sprintf("branch.%s.pushRemote", branch)
+	remotePath := fmt.Sprintf("branch.%s.remote", branch)
+
+	if pushRemote, err := gitOutput("config", "--get", pushRemotePath); err == nil {
+		// if pushRemote is specified, use it
+		return pushRemote, nil
+	} else if remote, err := gitOutput("config", "--get", remotePath); err != nil {
+		// otherwise try to use remote
+		return "", err
+	} else {
+		return remote, nil
+	}
+}
+
+// Push does a `git push`
+func Push() error {
+	if err := git("push"); err != nil {
+		return err
+	}
+	return nil
+}
+
 func gitOutput(arg ...string) (string, error) {
 	cmd := exec.Command("git", arg...)
 

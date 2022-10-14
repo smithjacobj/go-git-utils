@@ -202,10 +202,12 @@ func GetPushRemoteForBranch(branch string) (string, error) {
 
 // Push does a `git push`
 func Push() error {
-	if err := git("push"); err != nil {
-		return err
-	}
-	return nil
+	return git("push")
+}
+
+// PushAndSetUpstream sets the remote tracking branch and pushes
+func PushAndSetUpstream(remote, branch string) error {
+	return git("push", "-u", remote, branch)
 }
 
 func gitOutput(arg ...string) (string, error) {

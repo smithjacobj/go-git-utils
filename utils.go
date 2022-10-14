@@ -174,6 +174,17 @@ func Log(arg ...string) (string, error) {
 	return gitOutput(arg...)
 }
 
+// GetForkPoint returns the common ancestor commit of the specified refs
+func GetForkPoint(ref string, arg ...string) (string, error) {
+	arg = append([]string{"merge-base", "--fork-point", ref}, arg...)
+	if output, err := gitOutput(arg...); err != nil {
+		// verified that an error is returned when fully merged or no common ancestor exists
+		return output, err
+	} else {
+		return output, nil
+	}
+}
+
 func gitOutput(arg ...string) (string, error) {
 	cmd := exec.Command("git", arg...)
 

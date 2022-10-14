@@ -492,3 +492,31 @@ func TestLog(t *testing.T) {
 		}
 	}
 }
+
+func TestGetForkPoint(t *testing.T) {
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	newBranchName := "divergence"
+	if hash, err := RevParse("HEAD"); err != nil {
+		t.Fatal(err)
+	} else if configDefaultBranchName, err := getConfigDefaultBranchName(); err != nil {
+		t.Fatal(err)
+	} else if err := CreateAndSwitchToBranch(newBranchName); err != nil {
+		t.Fatal(err)
+	} else if err := commitBlankFile("Z"); err != nil {
+		t.Fatal(err)
+	} else if forkHash, err := GetForkPoint(configDefaultBranchName); err != nil {
+		t.Fatal(err)
+	} else if forkHash2, err := GetForkPoint(configDefaultBranchName, newBranchName); err != nil {
+		// also test the 2-arg version
+		t.Fatal(err)
+	} else {
+		expectEq(t, hash, forkHash)
+		expectEq(t, hash, forkHash2)
+	}
+
+	if _, err := GetForkPoint("doesnt-exist"); err == nil {
+		t.Fatal("Expected error for invalid ref")
+	}
+}

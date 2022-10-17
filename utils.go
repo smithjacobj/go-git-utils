@@ -205,6 +205,15 @@ func Push() error {
 	return git("push")
 }
 
+// Push pushes a branch to its default remote without switching to it.
+func PushBranch(branch string) error {
+	if remote, err := GetPushRemoteForBranch(branch); err != nil {
+		return err
+	} else {
+		return git("push", remote, branch)
+	}
+}
+
 // PushAndSetUpstream sets the remote tracking branch and pushes
 func PushAndSetUpstream(remote, branch string) error {
 	return git("push", "-u", remote, branch)

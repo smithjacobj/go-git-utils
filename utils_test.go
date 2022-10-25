@@ -315,6 +315,40 @@ func TestAmend(t *testing.T) {
 	}
 }
 
+func TestAmendWithMessage(t *testing.T) {
+	const k_Message = "the message"
+
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	if err := appendToFile("F", "lorem ipsum"); err != nil {
+		t.Fatal(err)
+	} else if hasChanges, err := HasChanges(); err != nil {
+		t.Fatal(err)
+	} else {
+		expectEq(t, true, hasChanges)
+	}
+
+	if err := Add("."); err != nil {
+		t.Fatal(err)
+	} else if err := AmendWithMessage(k_Message); err != nil {
+		// this has to be run with --no-edit or it shells out to the configured editor waiting for
+		// user input, which breaks automated testing
+		t.Fatal(err)
+	} else if hasChanges, err := HasChanges(); err != nil {
+		t.Fatal(err)
+	} else {
+		expectEq(t, false, hasChanges)
+	}
+
+	if desc, err := FormatShowRefDescription("HEAD", "%B"); err != nil {
+		t.Fatal(err)
+	} else {
+		// expect changed commit message
+		expectEq(t, k_Message, desc)
+	}
+}
+
 func TestCheckout(t *testing.T) {
 	cleanup := setupGitRepo(t)
 	defer cleanup()

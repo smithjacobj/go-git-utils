@@ -121,6 +121,11 @@ func Amend() error {
 	return cmd.Run()
 }
 
+// AmendWithMessage runs `git commit --amend -m <message>`
+func AmendWithMessage(message string) error {
+	return git("commit", "--amend", "-m", message)
+}
+
 // Amend runs `git commit --amend --no-edit` to amend the details of the last commit
 func AmendNoEdit() error {
 	return git("commit", "--amend", "--no-edit")

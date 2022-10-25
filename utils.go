@@ -146,6 +146,11 @@ func CreateBranch(branchName string) error {
 	return git("branch", branchName)
 }
 
+// CreateBranchForced creates a branch at ref but doesn't switch to it.
+func CreateBranchForced(branchName, ref string) error {
+	return git("branch", "-f", branchName, ref)
+}
+
 // ForceDeleteBranch force-deletes the specified branch
 func ForceDeleteBranch(branchName string) error {
 	return git("branch", "-D", branchName)

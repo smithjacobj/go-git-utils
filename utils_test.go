@@ -401,6 +401,51 @@ func TestCreateBranch(t *testing.T) {
 	} else if configDefaultBranchName, err := getConfigDefaultBranchName(); err != nil {
 		t.Fatal(err)
 	} else {
+		// expect that we're still on the default branch
+		expectEq(t, configDefaultBranchName, output)
+		expectNEq(t, newBranchName, output)
+	}
+}
+
+func TestCreateBranchForced(t *testing.T) {
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	newBranchName := "a-new-branch"
+	if BranchExists(newBranchName) {
+		t.Fatal("Found our new branch " + newBranchName + " before we added it")
+	}
+
+	if expectedHash, err := RevParse(k_RefNames[2]); err != nil {
+		t.Fatal(err)
+	} else if err := CreateBranchForced(newBranchName, expectedHash); err != nil {
+		t.Fatal(err)
+	} else if !BranchExists(newBranchName) {
+		t.Fatal("Could not find branch named " + newBranchName)
+	} else if hash, err := RevParse(newBranchName); err != nil {
+		t.Fatal(err)
+	} else {
+		expectEq(t, expectedHash, hash)
+	}
+
+	if expectedHash, err := RevParse(k_RefNames[4]); err != nil {
+		t.Fatal(err)
+	} else if err := CreateBranchForced(newBranchName, k_RefNames[4]); err != nil {
+		t.Fatal(err)
+	} else if !BranchExists(newBranchName) {
+		t.Fatal("Could not find branch named " + newBranchName)
+	} else if hash, err := RevParse(newBranchName); err != nil {
+		t.Fatal(err)
+	} else {
+		expectEq(t, expectedHash, hash)
+	}
+
+	if output, err := GetCurrentBranchName(); err != nil {
+		t.Fatal(err)
+	} else if configDefaultBranchName, err := getConfigDefaultBranchName(); err != nil {
+		t.Fatal(err)
+	} else {
+		// expect that we're still on the default branch
 		expectEq(t, configDefaultBranchName, output)
 		expectNEq(t, newBranchName, output)
 	}

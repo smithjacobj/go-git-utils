@@ -210,12 +210,21 @@ func Push() error {
 	return git("push")
 }
 
-// Push pushes a branch to its default remote without switching to it.
+// PushBranch pushes a branch to its default remote without switching to it.
 func PushBranch(branch string) error {
 	if remote, err := GetPushRemoteForBranch(branch); err != nil {
 		return err
 	} else {
 		return git("push", remote, branch)
+	}
+}
+
+// ForcePushBranch pushes a branch to its default remote without switching to it.
+func ForcePushBranch(branch string) error {
+	if remote, err := GetPushRemoteForBranch(branch); err != nil {
+		return err
+	} else {
+		return git("push", "-f", remote, branch)
 	}
 }
 

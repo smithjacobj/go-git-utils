@@ -220,6 +220,16 @@ func ForceAddNote(object, note string) error {
 	return err
 }
 
+// MergeAddNote appends the supplied note to any existing notes associated with the specified
+// object.
+func AppendNote(object, note string) error {
+	cmd := GitCmd("notes", "append", "--file", "-", object)
+	cmd.Stdin = strings.NewReader(note)
+
+	_, err := cmd.FormatOutput(cmd.CombinedOutput())
+	return err
+}
+
 // Push does a `git push`
 func Push() error {
 	return Git("push")

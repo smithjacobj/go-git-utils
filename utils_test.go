@@ -647,7 +647,7 @@ func TestForceAddNote(t *testing.T) {
 
 	noteMap := map[string]string{
 		k_RefNames[3]: "test3",
-		k_RefNames[2]: "test\n\nnewline",
+		k_RefNames[3]: "test\n\nnewline",
 		k_RefNames[1]: "test1",
 	}
 
@@ -660,6 +660,39 @@ func TestForceAddNote(t *testing.T) {
 			t.Fatal(err)
 		} else {
 			expectEq(t, expectedNote, note)
+		}
+	}
+}
+
+func TestAppendNote(t *testing.T) {
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	refs := []string{
+		k_RefNames[3],
+		k_RefNames[3],
+		k_RefNames[1],
+	}
+	notes := []string{
+		"test3",
+		"test\n\nnewline",
+		"test1",
+	}
+	expecteds := []string{
+		notes[0],
+		notes[0] + "\n\n" + notes[1],
+		notes[2],
+	}
+
+	for i, refName := range refs {
+		if hash, err := RevParse(refName); err != nil {
+			t.Fatal(err)
+		} else if err := AppendNote(hash, notes[i]); err != nil {
+			t.Fatal(err)
+		} else if note, err := FormatShowRefDescription(hash, "%N"); err != nil {
+			t.Fatal(err)
+		} else {
+			expectEq(t, expecteds[i], note)
 		}
 	}
 }

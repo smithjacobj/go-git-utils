@@ -51,9 +51,9 @@ func touch(name string) error {
 func commitBlankFile(name string) error {
 	if err := touch(name); err != nil {
 		return err
-	} else if err := git("add", name); err != nil {
+	} else if err := Git("add", name); err != nil {
 		return err
-	} else if err := git("commit", "-m", fmt.Sprintf("file %s", name)); err != nil {
+	} else if err := Git("commit", "-m", fmt.Sprintf("file %s", name)); err != nil {
 		return err
 	}
 	return nil
@@ -71,7 +71,7 @@ func setupGitRepo(t *testing.T) (cleanup func()) {
 
 	if err := os.Chdir(folder); err != nil {
 		t.Fatal(err)
-	} else if err := git("init"); err != nil {
+	} else if err := Git("init"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +91,7 @@ func setupGitRepo(t *testing.T) (cleanup func()) {
 }
 
 func getConfigDefaultBranchName() (string, error) {
-	return gitOutput("config", "--get", "init.defaultBranch")
+	return GitOutput("config", "--get", "init.defaultBranch")
 }
 
 func appendToFile(name, content string) error {
@@ -368,7 +368,7 @@ func TestCreateAndSwitchToBranch(t *testing.T) {
 	defer cleanup()
 
 	newBranchName := "a-new-branch"
-	if output, err := gitOutput("branch", "-l"); err != nil {
+	if output, err := GitOutput("branch", "-l"); err != nil {
 		t.Fatal(err)
 	} else if strings.Contains(output, newBranchName) {
 		t.Fatal("Found our new branch " + newBranchName + " before we added it")
@@ -509,7 +509,7 @@ func TestAdd(t *testing.T) {
 		t.Fatal(err)
 	} else if err := Add("Z"); err != nil {
 		t.Fatal(err)
-	} else if output, err := gitOutput("status", "-s"); err != nil {
+	} else if output, err := GitOutput("status", "-s"); err != nil {
 		t.Fatal(err)
 	} else if !strings.Contains(output, "A  Z") {
 		t.Fatal("Z not added to staging area")
@@ -610,7 +610,7 @@ func TestGetPushRemoteForBranch(t *testing.T) {
 			t.Fatal(err)
 		} else if configDefaultBranchName, err := getConfigDefaultBranchName(); err != nil {
 			t.Fatal(err)
-		} else if err := git("branch", "-u", k_PushBranchName); err != nil {
+		} else if err := Git("branch", "-u", k_PushBranchName); err != nil {
 			t.Fatal(err)
 		} else if remoteName, err := GetPushRemoteForBranch(configDefaultBranchName); err != nil {
 			t.Fatal(err)
@@ -631,7 +631,7 @@ func TestGetPushRemoteForBranch(t *testing.T) {
 		}
 		var configPath = fmt.Sprintf("branch.%s.pushRemote", configDefaultBranchName)
 
-		if err := git("config", "--add", configPath, k_DummyRemoteName); err != nil {
+		if err := Git("config", "--add", configPath, k_DummyRemoteName); err != nil {
 			t.Fatal(err)
 		} else if remoteName, err := GetPushRemoteForBranch(configDefaultBranchName); err != nil {
 			t.Fatal(err)
@@ -639,4 +639,27 @@ func TestGetPushRemoteForBranch(t *testing.T) {
 			expectEq(t, k_DummyRemoteName, remoteName)
 		}
 	}()
+}
+
+func TestForceAddNote(t *testing.T) {
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	noteMap := map[string]string{
+		k_RefNames[3]: "test3",
+		k_RefNames[2]: "test\n\nnewline",
+		k_RefNames[1]: "test1",
+	}
+
+	for refName, expectedNote := range noteMap {
+		if hash, err := RevParse(refName); err != nil {
+			t.Fatal(err)
+		} else if err := ForceAddNote(hash, expectedNote); err != nil {
+			t.Fatal(err)
+		} else if note, err := FormatShowRefDescription(hash, "%N"); err != nil {
+			t.Fatal(err)
+		} else {
+			expectEq(t, expectedNote, note)
+		}
+	}
 }

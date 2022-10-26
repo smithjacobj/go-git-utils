@@ -14,7 +14,7 @@ import (
 // the description and err is nil. If it fails, s contains the error output and err contains the
 // error returned from Run().
 func FormatShowRefDescription(ref, format string) (s string, err error) {
-	if output, err := gitOutput("show", ref, "--no-patch", "--no-color", fmt.Sprintf("--format=%s", format)); err != nil {
+	if output, err := GitOutput("show", ref, "--no-patch", "--no-color", fmt.Sprintf("--format=%s", format)); err != nil {
 		return "", err
 	} else {
 		return strings.TrimSpace(output), nil
@@ -123,37 +123,37 @@ func Amend() error {
 
 // AmendWithMessage runs `git commit --amend -m <message>`
 func AmendWithMessage(message string) error {
-	return git("commit", "--amend", "-m", message)
+	return Git("commit", "--amend", "-m", message)
 }
 
 // Amend runs `git commit --amend --no-edit` to amend the details of the last commit
 func AmendNoEdit() error {
-	return git("commit", "--amend", "--no-edit")
+	return Git("commit", "--amend", "--no-edit")
 }
 
 // Checkout the specified ref
 func Checkout(ref string) error {
-	return git("checkout", ref)
+	return Git("checkout", ref)
 }
 
 // CreateAndSwitchToBranch creates a new branch and switches to it (`git checkout -b`)
 func CreateAndSwitchToBranch(branchName string) error {
-	return git("checkout", "-b", branchName)
+	return Git("checkout", "-b", branchName)
 }
 
 // CreateBranch creates a branch at HEAD but doesn't switch to it
 func CreateBranch(branchName string) error {
-	return git("branch", branchName)
+	return Git("branch", branchName)
 }
 
 // CreateBranchForced creates a branch at ref but doesn't switch to it.
 func CreateBranchForced(branchName, ref string) error {
-	return git("branch", "-f", branchName, ref)
+	return Git("branch", "-f", branchName, ref)
 }
 
 // ForceDeleteBranch force-deletes the specified branch
 func ForceDeleteBranch(branchName string) error {
-	return git("branch", "-D", branchName)
+	return Git("branch", "-D", branchName)
 }
 
 // RevParse gets the hash for a ref
@@ -170,24 +170,24 @@ func RevParse(ref string) (string, error) {
 // Add does a `git add`
 func Add(paths ...string) error {
 	arg := append([]string{"add", "--"}, paths...)
-	return git(arg...)
+	return Git(arg...)
 }
 
 // Rebase does a `git rebase`
 func Rebase(base, topic string) error {
-	return git("rebase", base, topic)
+	return Git("rebase", base, topic)
 }
 
 // Log returns a log as per the provided arguments
 func Log(arg ...string) (string, error) {
 	arg = append([]string{"log"}, arg...)
-	return gitOutput(arg...)
+	return GitOutput(arg...)
 }
 
 // GetForkPoint returns the common ancestor commit of the specified refs
 func GetForkPoint(ref string, arg ...string) (string, error) {
 	arg = append([]string{"merge-base", "--fork-point", ref}, arg...)
-	if output, err := gitOutput(arg...); err != nil {
+	if output, err := GitOutput(arg...); err != nil {
 		// verified that an error is returned when fully merged or no common ancestor exists
 		return output, err
 	} else {
@@ -195,14 +195,15 @@ func GetForkPoint(ref string, arg ...string) (string, error) {
 	}
 }
 
+// GetPushRemoteForBranch gets the name for the default push remote for the specified branch
 func GetPushRemoteForBranch(branch string) (string, error) {
 	pushRemotePath := fmt.Sprintf("branch.%s.pushRemote", branch)
 	remotePath := fmt.Sprintf("branch.%s.remote", branch)
 
-	if pushRemote, err := gitOutput("config", "--get", pushRemotePath); err == nil {
+	if pushRemote, err := GitOutput("config", "--get", pushRemotePath); err == nil {
 		// if pushRemote is specified, use it
 		return pushRemote, nil
-	} else if remote, err := gitOutput("config", "--get", remotePath); err != nil {
+	} else if remote, err := GitOutput("config", "--get", remotePath); err != nil {
 		// otherwise try to use remote
 		return "", err
 	} else {
@@ -210,9 +211,18 @@ func GetPushRemoteForBranch(branch string) (string, error) {
 	}
 }
 
+// ForceAddNote replaces the note associated with the specified object.
+func ForceAddNote(object, note string) error {
+	cmd := GitCmd("notes", "add", "--force", "--file", "-", object)
+	cmd.Stdin = strings.NewReader(note)
+
+	_, err := cmd.FormatOutput(cmd.CombinedOutput())
+	return err
+}
+
 // Push does a `git push`
 func Push() error {
-	return git("push")
+	return Git("push")
 }
 
 // PushBranch pushes a branch to its default remote without switching to it.
@@ -220,7 +230,7 @@ func PushBranch(branch string) error {
 	if remote, err := GetPushRemoteForBranch(branch); err != nil {
 		return err
 	} else {
-		return git("push", remote, branch)
+		return Git("push", remote, branch)
 	}
 }
 
@@ -229,27 +239,39 @@ func ForcePushBranch(branch string) error {
 	if remote, err := GetPushRemoteForBranch(branch); err != nil {
 		return err
 	} else {
-		return git("push", "-f", remote, branch)
+		return Git("push", "-f", remote, branch)
 	}
 }
 
 // PushAndSetUpstream sets the remote tracking branch and pushes
 func PushAndSetUpstream(remote, branch string) error {
-	return git("push", "-u", remote, branch)
+	return Git("push", "-u", remote, branch)
 }
 
-func gitOutput(arg ...string) (string, error) {
-	cmd := exec.Command("git", arg...)
+type Cmd struct {
+	*exec.Cmd
+}
 
-	if output, err := cmd.CombinedOutput(); err != nil {
+func GitCmd(arg ...string) *Cmd {
+	return &Cmd{exec.Command("git", arg...)}
+}
+
+func GitOutput(arg ...string) (string, error) {
+	cmd := GitCmd(arg...)
+
+	return cmd.FormatOutput(cmd.CombinedOutput())
+}
+
+func Git(arg ...string) error {
+	_, err := GitOutput(arg...)
+	return err
+}
+
+func (cmd *Cmd) FormatOutput(output []byte, err error) (string, error) {
+	if err != nil {
 		asExecuted := cmd.String()
 		return "", fmt.Errorf("%s: %s\n%s", err, asExecuted, output)
 	} else {
 		return strings.TrimSpace(string(output)), nil
 	}
-}
-
-func git(arg ...string) error {
-	_, err := gitOutput(arg...)
-	return err
 }

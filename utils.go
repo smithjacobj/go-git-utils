@@ -212,7 +212,7 @@ func GetPushRemoteForBranch(branch string) (string, error) {
 }
 
 // ForceAddNote replaces the note associated with the specified object.
-func ForceAddNote(object, note string) error {
+func ForceAddNotes(object, note string) error {
 	cmd := GitCmd("notes", "add", "--force", "--file", "-", object)
 	cmd.Stdin = strings.NewReader(note)
 
@@ -220,14 +220,19 @@ func ForceAddNote(object, note string) error {
 	return err
 }
 
-// MergeAddNote appends the supplied note to any existing notes associated with the specified
+// AppendNote appends the supplied note to any existing notes associated with the specified
 // object.
-func AppendNote(object, note string) error {
+func AppendNotes(object, note string) error {
 	cmd := GitCmd("notes", "append", "--file", "-", object)
 	cmd.Stdin = strings.NewReader(note)
 
 	_, err := cmd.FormatOutput(cmd.CombinedOutput())
 	return err
+}
+
+// ShowNotes shows the notes associated with the specified object
+func ShowNotes(object string) (string, error) {
+	return GitOutput("notes", "show", object)
 }
 
 // Push does a `git push`

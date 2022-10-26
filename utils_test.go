@@ -641,7 +641,7 @@ func TestGetPushRemoteForBranch(t *testing.T) {
 	}()
 }
 
-func TestForceAddNote(t *testing.T) {
+func TestForceAddNotes(t *testing.T) {
 	cleanup := setupGitRepo(t)
 	defer cleanup()
 
@@ -654,7 +654,7 @@ func TestForceAddNote(t *testing.T) {
 	for refName, expectedNote := range noteMap {
 		if hash, err := RevParse(refName); err != nil {
 			t.Fatal(err)
-		} else if err := ForceAddNote(hash, expectedNote); err != nil {
+		} else if err := ForceAddNotes(hash, expectedNote); err != nil {
 			t.Fatal(err)
 		} else if note, err := FormatShowRefDescription(hash, "%N"); err != nil {
 			t.Fatal(err)
@@ -664,7 +664,7 @@ func TestForceAddNote(t *testing.T) {
 	}
 }
 
-func TestAppendNote(t *testing.T) {
+func TestAppendNotes(t *testing.T) {
 	cleanup := setupGitRepo(t)
 	defer cleanup()
 
@@ -687,9 +687,42 @@ func TestAppendNote(t *testing.T) {
 	for i, refName := range refs {
 		if hash, err := RevParse(refName); err != nil {
 			t.Fatal(err)
-		} else if err := AppendNote(hash, notes[i]); err != nil {
+		} else if err := AppendNotes(hash, notes[i]); err != nil {
 			t.Fatal(err)
 		} else if note, err := FormatShowRefDescription(hash, "%N"); err != nil {
+			t.Fatal(err)
+		} else {
+			expectEq(t, expecteds[i], note)
+		}
+	}
+}
+
+func TestShowNotes(t *testing.T) {
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	refs := []string{
+		k_RefNames[3],
+		k_RefNames[3],
+		k_RefNames[1],
+	}
+	notes := []string{
+		"test3",
+		"test\n\nnewline",
+		"test1",
+	}
+	expecteds := []string{
+		notes[0],
+		notes[0] + "\n\n" + notes[1],
+		notes[2],
+	}
+
+	for i, refName := range refs {
+		if hash, err := RevParse(refName); err != nil {
+			t.Fatal(err)
+		} else if err := AppendNotes(hash, notes[i]); err != nil {
+			t.Fatal(err)
+		} else if note, err := ShowNotes(hash); err != nil {
 			t.Fatal(err)
 		} else {
 			expectEq(t, expecteds[i], note)

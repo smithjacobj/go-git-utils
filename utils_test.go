@@ -15,15 +15,11 @@ import (
 
 var k_FileNames = []string{"A", "B", "C", "D", "E", "F"}
 var k_CommitDescriptions = make([]string, 0, len(k_FileNames))
-var k_RefNames = make([]string, 0, len(k_FileNames))
+var g_RefNames = make([]string, 0, len(k_FileNames))
 
 func init() {
 	for _, name := range k_FileNames {
 		k_CommitDescriptions = append(k_CommitDescriptions, fmt.Sprintf("file %s", name))
-	}
-	for i := 0; i < len(k_FileNames); i++ {
-		parentNum := len(k_FileNames) - i - 1
-		k_RefNames = append(k_RefNames, fmt.Sprintf("HEAD~%d", parentNum))
 	}
 }
 
@@ -37,6 +33,14 @@ func expectNEq[T comparable](t *testing.T, unexpected, actual T) {
 	if unexpected == actual {
 		t.Fatal("Expected", actual, "to not be", unexpected)
 	}
+}
+
+func expectTrue(t *testing.T, actual bool) {
+	expectEq(t, true, actual)
+}
+
+func expectFalse(t *testing.T, actual bool) {
+	expectEq(t, false, actual)
 }
 
 func touch(name string) error {
@@ -75,9 +79,14 @@ func setupGitRepo(t *testing.T) (cleanup func()) {
 		t.Fatal(err)
 	}
 
+	g_RefNames = g_RefNames[:0]
 	for _, name := range k_FileNames {
 		if err := commitBlankFile(name); err != nil {
 			t.Fatal(err)
+		} else if ref, err := RevParse("HEAD"); err != nil {
+			t.Fatal(err)
+		} else {
+			g_RefNames = append(g_RefNames, ref)
 		}
 	}
 
@@ -112,7 +121,7 @@ func TestFormatShowRefDescription(t *testing.T) {
 	defer cleanup()
 
 	for i := 0; i < len(k_FileNames); i++ {
-		ref := k_RefNames[i]
+		ref := g_RefNames[i]
 		expected := k_CommitDescriptions[i]
 		if desc, err := FormatShowRefDescription(ref, "%B"); err != nil {
 			t.Fatal(err)
@@ -144,7 +153,7 @@ new file mode 100644
 index 0000000..e69de29
 `
 
-	if actual, err := Diff(k_RefNames[0], k_RefNames[len(k_RefNames)-1]); err != nil {
+	if actual, err := Diff(g_RefNames[0], g_RefNames[len(g_RefNames)-1]); err != nil {
 		t.Fatal(err)
 	} else {
 		expectEq(t, expected, actual.String())
@@ -155,13 +164,13 @@ func TestIsDifferent(t *testing.T) {
 	cleanup := setupGitRepo(t)
 	defer cleanup()
 
-	if isDifferent, err := IsDifferent(k_RefNames[0], k_RefNames[1]); err != nil {
+	if isDifferent, err := IsDifferent(g_RefNames[0], g_RefNames[1]); err != nil {
 		t.Fatal(err)
 	} else {
 		expectEq(t, true, isDifferent)
 	}
 
-	if isDifferent, err := IsDifferent(k_RefNames[0], k_RefNames[0]); err != nil {
+	if isDifferent, err := IsDifferent(g_RefNames[0], g_RefNames[0]); err != nil {
 		t.Fatal(err)
 	} else {
 		expectEq(t, false, isDifferent)
@@ -353,8 +362,8 @@ func TestCheckout(t *testing.T) {
 	cleanup := setupGitRepo(t)
 	defer cleanup()
 
-	// k_RefNames aren't valid after this since they're relative to HEAD
-	if err := Checkout(k_RefNames[3]); err != nil {
+	// g_RefNames aren't valid after this since they're relative to HEAD
+	if err := Checkout(g_RefNames[3]); err != nil {
 		t.Fatal(err)
 	} else if desc, err := FormatShowRefDescription("HEAD", "%B"); err != nil {
 		t.Fatal(err)
@@ -416,7 +425,7 @@ func TestCreateBranchForced(t *testing.T) {
 		t.Fatal("Found our new branch " + newBranchName + " before we added it")
 	}
 
-	if expectedHash, err := RevParse(k_RefNames[2]); err != nil {
+	if expectedHash, err := RevParse(g_RefNames[2]); err != nil {
 		t.Fatal(err)
 	} else if err := CreateBranchForced(newBranchName, expectedHash); err != nil {
 		t.Fatal(err)
@@ -428,9 +437,9 @@ func TestCreateBranchForced(t *testing.T) {
 		expectEq(t, expectedHash, hash)
 	}
 
-	if expectedHash, err := RevParse(k_RefNames[4]); err != nil {
+	if expectedHash, err := RevParse(g_RefNames[4]); err != nil {
 		t.Fatal(err)
-	} else if err := CreateBranchForced(newBranchName, k_RefNames[4]); err != nil {
+	} else if err := CreateBranchForced(newBranchName, g_RefNames[4]); err != nil {
 		t.Fatal(err)
 	} else if !BranchExists(newBranchName) {
 		t.Fatal("Could not find branch named " + newBranchName)
@@ -541,7 +550,7 @@ func TestLog(t *testing.T) {
 	defer cleanup()
 
 	hashes := []string{}
-	for _, ref := range k_RefNames {
+	for _, ref := range g_RefNames {
 		hash, err := RevParse(ref)
 		if err != nil {
 			t.Fatal(err)
@@ -600,6 +609,33 @@ func TestGetForkPoint(t *testing.T) {
 	}
 }
 
+func TestIsAncestor(t *testing.T) {
+	cleanup := setupGitRepo(t)
+	defer cleanup()
+
+	newBranchName := "divergence"
+	if configDefaultBranchName, err := getConfigDefaultBranchName(); err != nil {
+		t.Fatal(err)
+	} else if err := Checkout(g_RefNames[2]); err != nil {
+		t.Fatal(err)
+	} else if err := CreateAndSwitchToBranch(newBranchName); err != nil {
+		t.Fatal(err)
+	} else if err := commitBlankFile("Z"); err != nil {
+		t.Fatal(err)
+	} else if isAncestor, err := IsAncestor(g_RefNames[0], configDefaultBranchName); err != nil {
+		t.Fatal(err)
+	} else if isAncestor2, err := IsAncestor(g_RefNames[4], newBranchName); err != nil {
+		t.Fatal(err)
+	} else {
+		expectTrue(t, isAncestor)
+		expectFalse(t, isAncestor2)
+	}
+
+	if _, err := GetForkPoint("doesnt-exist"); err == nil {
+		t.Fatal("Expected error for invalid ref")
+	}
+}
+
 func TestGetPushRemoteForBranch(t *testing.T) {
 	func() {
 		cleanup := setupGitRepo(t)
@@ -646,9 +682,9 @@ func TestForceAddNotes(t *testing.T) {
 	defer cleanup()
 
 	noteMap := map[string]string{
-		k_RefNames[3]: "test3",
-		k_RefNames[3]: "test\n\nnewline",
-		k_RefNames[1]: "test1",
+		g_RefNames[3]: "test3",
+		g_RefNames[3]: "test\n\nnewline",
+		g_RefNames[1]: "test1",
 	}
 
 	for refName, expectedNote := range noteMap {
@@ -669,9 +705,9 @@ func TestAppendNotes(t *testing.T) {
 	defer cleanup()
 
 	refs := []string{
-		k_RefNames[3],
-		k_RefNames[3],
-		k_RefNames[1],
+		g_RefNames[3],
+		g_RefNames[3],
+		g_RefNames[1],
 	}
 	notes := []string{
 		"test3",
@@ -702,9 +738,9 @@ func TestShowNotes(t *testing.T) {
 	defer cleanup()
 
 	refs := []string{
-		k_RefNames[3],
-		k_RefNames[3],
-		k_RefNames[1],
+		g_RefNames[3],
+		g_RefNames[3],
+		g_RefNames[1],
 	}
 	notes := []string{
 		"test3",

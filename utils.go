@@ -195,6 +195,19 @@ func GetForkPoint(ref string, arg ...string) (string, error) {
 	}
 }
 
+// IsAncestor returns if the first ref is an ancestor of the second
+func IsAncestor(ref1, ref2 string) (bool, error) {
+	cmd := GitCmd("merge-base", "--is-ancestor", ref1, ref2)
+	_, err := cmd.FormatOutput(cmd.CombinedOutput())
+	if cmd.ProcessState.ExitCode() == 0 {
+		return true, nil
+	} else if cmd.ProcessState.ExitCode() == 1 {
+		return false, nil
+	} else {
+		return false, err
+	}
+}
+
 // GetPushRemoteForBranch gets the name for the default push remote for the specified branch
 func GetPushRemoteForBranch(branch string) (string, error) {
 	pushRemotePath := fmt.Sprintf("branch.%s.pushRemote", branch)
